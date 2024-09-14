@@ -84,9 +84,11 @@ HAVING COUNT(exam_id) > 3;
 SELECT COUNT(*) AS department_count
 FROM department;
 
+-- Cập nhật dữ liệu
+UPDATE department
+SET department_name = "Phòng chờ"
+WHERE department_id = 1;
 
-
-
-
-
-
+-- Xóa dữ liệu
+DELETE FROM department
+WHERE department_id = 3;
