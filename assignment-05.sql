@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS assignment_04;
-CREATE DATABASE assignment_04;
-USE assignment_04;
+DROP DATABASE IF EXISTS assignment_05;
+CREATE DATABASE assignment_05;
+USE assignment_05;
 
 -- Tạo bảng department
 DROP TABLE IF EXISTS department;
@@ -266,114 +266,69 @@ VALUES                      (1         , 1      ),
                             (9         , 2      ),
                             (10        , 10     );
 
--- Question 1: Viết lệnh để lấy ra danh sách nhân viên
--- và thông tin phòng ban của họ
+-- Question 1: Tạo view có chứa danh sách nhân viên
+-- thuộc phòng ban sale
+CREATE OR REPLACE VIEW view_01 AS
 SELECT *
 FROM account
-INNER JOIN department USING (department_id);
+WHERE department_id =
+    (SELECT department_id
+    FROM department
+    WHERE department_name = "Sale");
 
--- Question 2: Viết lệnh để lấy ra thông tin các account
--- được tạo sau ngày 20/12/2010
-SELECT *
+-- Question 2: Tạo view có chứa thông tin các account
+-- tham gia vào nhiều group nhất
+CREATE OR REPLACE VIEW view_02 AS
+SELECT account.*
 FROM account
-INNER JOIN department USING (department_id)
-INNER JOIN position USING (position_id)
-WHERE created_date > "2010-12-20";
+LEFT JOIN group_account USING (account_id)
+GROUP BY account_id
+HAVING COUNT(group_id) =
+    (SELECT MAX(group_count)
+    FROM
+        (SELECT COUNT(group_id) AS group_count
+        FROM account
+        LEFT JOIN group_account USING (account_id)
+        GROUP BY account_id) AS t);
 
--- Question 3: Viết lệnh để lấy ra tất cả các developer
+-- Question 3: Tạo view có chứa câu hỏi có những content quá dài
+-- (content quá 300 từ được coi là quá dài) và xóa nó đi
+CREATE OR REPLACE VIEW view_03 AS
 SELECT *
-FROM account
-INNER JOIN position USING (position_id)
-WHERE position_name = "Dev";
+FROM question
+WHERE CHAR_LENGTH(content) - CHAR_LENGTH(REPLACE(content, ' ', '')) + 1 > 300;
 
--- Question 4: Viết lệnh để lấy ra danh sách các phòng ban
--- có > 2 nhân viên
+DELETE FROM view_03;
+
+-- Question 4: Tạo view có chứa danh sách các phòng ban
+-- có nhiều nhân viên nhất
+CREATE OR REPLACE VIEW view_04 AS
 SELECT department.*
 FROM department
 LEFT JOIN account USING (department_id)
 GROUP BY department_id
-HAVING COUNT(*) > 2;
+HAVING COUNT(account_id) =
+    (SELECT MAX(account_count)
+    FROM
+        (SELECT COUNT(account_id) AS account_count
+        FROM department
+        LEFT JOIN account USING (department_id)
+        GROUP BY department_id) AS t);
 
--- Question 5: Viết lệnh để lấy ra danh sách câu hỏi
--- được sử dụng trong đề thi nhiều nhất
-SELECT question.*
+-- Question 5: Tạo view có chứa tất các các câu hỏi
+-- do user họ Nguyễn tạo.
+CREATE OR REPLACE VIEW view_05 AS 
+SELECT * 
 FROM question
-LEFT JOIN exam_question USING (question_id)
-GROUP BY question_id
-ORDER BY COUNT(exam_id) DESC
-LIMIT 1;
+WHERE creator_id = ANY
+    (SELECT account_id
+    FROM account 
+    WHERE full_name LIKE 'Nguyễn%');
 
--- Question 6: Thống kê mỗi category question
--- được sử dụng trong bao nhiêu question
-SELECT category_question.*, COUNT(question_id)
-FROM question
-RIGHT JOIN category_question USING (category_id)
-GROUP BY category_id;
 
--- Question 7: Thống kê mỗi question
--- được sử dụng trong bao nhiêu exam
-SELECT question_id, COUNT(exam_id)
-FROM question
-LEFT JOIN exam_question USING (question_id)
-GROUP BY question_id;
 
--- Question 8: Lấy ra question có nhiều câu trả lời nhất
-SELECT question.*
-FROM question
-LEFT JOIN answer USING (question_id)
-GROUP BY question_id
-ORDER BY COUNT(answer_id) DESC
-LIMIT 1;
 
--- Question 9: Thống kê số lượng account trong mỗi group
-SELECT `group`.*, COUNT(account_id)
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id;
 
--- Question 10: Tìm chức vụ có ít người nhất
-SELECT position.*
-FROM position
-LEFT JOIN account USING (position_id)
-GROUP BY position_id
-ORDER BY COUNT(account_id) ASC
-LIMIT 1;
-
--- Question 11: Thống kê mỗi phòng ban có bao nhiêu dev, test, scrum master, PM
-SELECT department_name, position_name, COUNT(account_id)
-FROM department
-CROSS JOIN position
-LEFT JOIN account USING (department_id, position_id)
-GROUP BY department_id, position_id;
-
--- Question 12: Lấy thông tin chi tiết của câu hỏi bao gồm:
--- thông tin cơ bản của question,
--- loại câu hỏi,
--- ai là người tạo ra câu hỏi,
--- câu trả lời là gì, ...
-SELECT *
-FROM question
-INNER JOIN type_question USING (type_id)
-INNER JOIN account ON creator_id = account_id
-INNER JOIN answer USING (question_id);
-
--- Question 13: Lấy ra số lượng câu hỏi của mỗi loại tự luận hay trắc nghiệm
-SELECT type_question.*, COUNT(question_id)
-FROM type_question
-LEFT JOIN question USING (type_id)
-GROUP BY type_id;
-
--- Question 15: Lấy ra group không có account nào
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-WHERE account_id IS NULL;
-
--- Question 16: Lấy ra question không có answer nào.
-SELECT question.*
-FROM question
-LEFT JOIN answer USING (question_id)
-WHERE answer_id IS NULL;
 
 
 

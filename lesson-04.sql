@@ -27,10 +27,17 @@ SELECT full_name, position_name
 FROM account
 CROSS JOIN position;
 
+-- UNION: Hợp kết quả
+-- VD: Tìm kiếm account hoặc group chứa ký tự 'n'
+SELECT "account" AS type, username AS result
+FROM account
+WHERE username LIKE "%n%"
+UNION
+SELECT "group" AS type, group_name AS result
+FROM `group`
+WHERE group_name LIKE "%n%";
 
-
-
-
-
-
-
+-- UNION ALL
+SELECT 1 AS n
+UNION ALL
+SELECT 1 AS n;
