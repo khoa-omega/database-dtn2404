@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS assignment_04;
-CREATE DATABASE assignment_04;
-USE assignment_04;
+DROP DATABASE IF EXISTS assignment_06;
+CREATE DATABASE assignment_06;
+USE assignment_06;
 
 -- Tạo bảng department
 DROP TABLE IF EXISTS department;
@@ -266,164 +266,114 @@ VALUES                      (1         , 1      ),
                             (9         , 2      ),
                             (10        , 10     );
 
--- Question 1: Viết lệnh để lấy ra danh sách nhân viên
--- và thông tin phòng ban của họ
-SELECT *
-FROM account
-INNER JOIN department USING (department_id);
+-- Question 1: Tạo store để người dùng nhập vào tên phòng ban
+-- và in ra tất cả các account thuộc phòng ban đó.
+DROP PROCEDURE IF EXISTS sp_01;
+DELIMITER $$
+CREATE PROCEDURE sp_01(IN in_department_name VARCHAR(50))
+BEGIN
+    DECLARE v_department_id INT;
 
--- Question 2: Viết lệnh để lấy ra thông tin các account
--- được tạo sau ngày 20/12/2010
-SELECT *
-FROM account
-INNER JOIN department USING (department_id)
-INNER JOIN position USING (position_id)
-WHERE created_date > "2010-12-20";
+    SELECT department_id INTO v_department_id
+    FROM department
+    WHERE department_name = in_department_name;
 
--- Question 3: Viết lệnh để lấy ra tất cả các developer
-SELECT *
-FROM account
-INNER JOIN position USING (position_id)
-WHERE position_name = "Dev";
+    SELECT *
+    FROM account
+    WHERE department_id = v_department_id;
+END $$
+DELIMITER ;
 
--- Question 4: Viết lệnh để lấy ra danh sách các phòng ban
--- có > 2 nhân viên
-SELECT department.*
-FROM department
-LEFT JOIN account USING (department_id)
-GROUP BY department_id
-HAVING COUNT(*) > 2;
+CALL sp_01("Marketing");
 
--- Question 5: Viết lệnh để lấy ra danh sách câu hỏi
--- được sử dụng trong đề thi nhiều nhất
-SELECT question.*
-FROM question
-LEFT JOIN exam_question USING (question_id)
-GROUP BY question_id
-ORDER BY COUNT(exam_id) DESC
-LIMIT 1;
+-- Question 2: Tạo store để in ra số lượng account trong mỗi group.
+DROP PROCEDURE IF EXISTS sp_02;
+DELIMITER $$
+CREATE PROCEDURE sp_02()
+BEGIN
+    SELECT `group`.*, COUNT(account_id)
+    FROM `group`
+    LEFT JOIN group_account USING (group_id)
+    GROUP BY group_id;
+END $$
+DELIMITER ;
 
--- Question 6: Thống kê mỗi category question
--- được sử dụng trong bao nhiêu question
-SELECT category_question.*, COUNT(question_id)
-FROM question
-RIGHT JOIN category_question USING (category_id)
-GROUP BY category_id;
+CALL sp_02();
 
--- Question 7: Thống kê mỗi question
--- được sử dụng trong bao nhiêu exam
-SELECT question_id, COUNT(exam_id)
-FROM question
-LEFT JOIN exam_question USING (question_id)
-GROUP BY question_id;
+-- Question 3: Tạo store để thống kê mỗi type question
+-- có bao nhiêu question được tạo trong tháng hiện tại.
+DROP PROCEDURE IF EXISTS sp_03;
+DELIMITER $$
+CREATE PROCEDURE sp_03()
+BEGIN
+    WITH c1 AS (
+        SELECT question_id, type_id
+        FROM question
+        WHERE MONTH(created_date) = MONTH(CURRENT_DATE)
+    )
+    SELECT type_question.*, COUNT(question_id)
+    FROM type_question
+    LEFT JOIN c1 USING (type_id)
+    GROUP BY type_id;
+END $$
+DELIMITER ;
 
--- Question 8: Lấy ra question có nhiều câu trả lời nhất
-SELECT question.*
-FROM question
-LEFT JOIN answer USING (question_id)
-GROUP BY question_id
-ORDER BY COUNT(answer_id) DESC
-LIMIT 1;
+CALL sp_03();
 
--- Question 9: Thống kê số lượng account trong mỗi group
-SELECT `group`.*, COUNT(account_id)
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id;
+-- Question 4: Tạo store để trả ra id của type question có nhiều câu hỏi nhất.
+-- Question 5: Sử dụng store ở question 4 để tìm ra tên của type question.
+-- Question 6: Viết 1 store cho phép người dùng nhập vào 1 chuỗi
+-- và trả về group có tên chứa chuỗi của người dùng nhập vào
+-- hoặc trả về user có username chứa chuỗi của người dùng nhập vào.
 
--- Question 10: Tìm chức vụ có ít người nhất
-SELECT position.*
-FROM position
-LEFT JOIN account USING (position_id)
-GROUP BY position_id
-ORDER BY COUNT(account_id) ASC
-LIMIT 1;
+-- Question 7: Viết 1 store cho phép người dùng nhập vào
+-- thông tin fullName, email và trong store sẽ tự động gán:
+-- username sẽ giống email nhưng bỏ phần @..mail đi
+-- positionID: sẽ có default là developer
+-- departmentID: sẽ được cho vào 1 phòng chờ
+-- Sau đó in ra kết quả tạo thành công
 
--- Question 11: Thống kê mỗi phòng ban có bao nhiêu dev, test, scrum master, PM
-SELECT department_name, position_name, COUNT(account_id)
-FROM department
-CROSS JOIN position
-LEFT JOIN account USING (department_id, position_id)
-GROUP BY department_id, position_id;
+-- Question 8: Viết 1 store cho phép người dùng nhập vào
+-- Essay hoặc Multiple-Choice để thống kê
+-- câu hỏi essay hoặc multiple-choice nào có content dài nhất
+DROP PROCEDURE IF EXISTS sp_08;
+DELIMITER $$
+CREATE PROCEDURE sp_08(IN in_type_name ENUM("Essay", "Multiple-Choice"))
+BEGIN
+    DECLARE v_type_id INT;
+    
+    SELECT type_id INTO v_type_id
+    FROM type_question
+    WHERE type_name = in_type_name;
+    
+    WITH c1 AS (
+        SELECT *, CHAR_LENGTH(content) AS content_length
+        FROM question
+        WHERE type_id = v_type_id
+    )
+    SELECT *
+    FROM c1
+    WHERE content_length =
+        (SELECT MAX(content_length)
+        FROM c1);
+END $$
+DELIMITER ;
 
--- Question 12: Lấy thông tin chi tiết của câu hỏi bao gồm:
--- thông tin cơ bản của question,
--- loại câu hỏi,
--- ai là người tạo ra câu hỏi,
--- câu trả lời là gì, ...
-SELECT *
-FROM question
-INNER JOIN type_question USING (type_id)
-INNER JOIN account ON creator_id = account_id
-INNER JOIN answer USING (question_id);
+CALL sp_08("Multiple-Choice");
 
--- Question 13: Lấy ra số lượng câu hỏi của mỗi loại tự luận hay trắc nghiệm
-SELECT type_question.*, COUNT(question_id)
-FROM type_question
-LEFT JOIN question USING (type_id)
-GROUP BY type_id;
+-- Question 9: Viết 1 store cho phép người dùng xóa exam dựa vào ID
+-- Question 10: Tìm ra các exam được tạo từ 3 năm trước và xóa các exam đó đi (sử
+-- dụng store ở câu 9 để xóa)
+-- Sau đó in số lượng record đã remove từ các table liên quan trong khi
+-- removing
+-- Question 11: Viết store cho phép người dùng xóa phòng ban bằng cách người dùng
+-- nhập vào tên phòng ban và các account thuộc phòng ban đó sẽ được
+-- chuyển về phòng ban default là phòng ban chờ việc
+-- Question 12: Viết store để in ra mỗi tháng có bao nhiêu câu hỏi được tạo trong năm nay
+-- Question 13: Viết store để in ra mỗi tháng có bao nhiêu câu hỏi được tạo trong 6 tháng gần đây nhất
+-- (Nếu tháng nào không có thì sẽ in ra là "không có câu hỏi nào trong tháng")
 
--- Question 15: Lấy ra group không có account nào
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-WHERE account_id IS NULL;
 
--- Question 16: Lấy ra question không có answer nào.
-SELECT question.*
-FROM question
-LEFT JOIN answer USING (question_id)
-WHERE answer_id IS NULL;
+-- 6, 7, 11, 12, 13
 
--- Question 17:
--- a) Lấy các account thuộc nhóm thứ 1
-SELECT account.*
-FROM account
-INNER JOIN group_account USING (account_id)
-WHERE group_id = 1;
 
--- b) Lấy các account thuộc nhóm thứ 2
-SELECT account.*
-FROM account
-INNER JOIN group_account USING (account_id)
-WHERE group_id = 2;
-
--- c) Ghép 2 kết quả từ câu a) và câu b)
--- sao cho không có record nào trùng nhau
-SELECT account.*
-FROM account
-INNER JOIN group_account USING (account_id)
-WHERE group_id = 1
-UNION
-SELECT account.*
-FROM account
-INNER JOIN group_account USING (account_id)
-WHERE group_id = 2;
-
--- Question 18:
--- a) Lấy các group có lớn hơn 5 thành viên
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id
-HAVING COUNT(account_id) > 5;
-
--- b) Lấy các group có nhỏ hơn 7 thành viên
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id
-HAVING COUNT(account_id) < 7;
-
--- c) Ghép 2 kết quả từ câu a) và câu b).
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id
-HAVING COUNT(account_id) > 5
-UNION ALL
-SELECT `group`.*
-FROM `group`
-LEFT JOIN group_account USING (group_id)
-GROUP BY group_id
-HAVING COUNT(account_id) < 7;
